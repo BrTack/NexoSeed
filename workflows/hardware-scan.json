@@ -1,0 +1,57 @@
+{
+  "name": "NexoSeed - Hardware Scan",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexo-hardware-scan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-hw",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "command": "={{$json.query?.os === 'linux' ? 'echo \"{\\\"hostname\\\": \\\"$(hostname)\\\", \\\"os\\\": \\\"$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | tr -d \\'\\\"\\' || echo Linux)\\\", \\\"cpu\\\": \\\"$(grep \\'model name\\' /proc/cpuinfo | head -1 | cut -d: -f2 | xargs)\\\", \\\"cores\\\": $(nproc), \\\"ram_gb\\\": $(free -g | awk \\'NR==2{print $2}\\'), \\\"gpu\\\": \\\"$(lspci 2>/dev/null | grep -i vga | cut -d: -f3 | xargs || echo unknown)\\\", \\\"disk_free_gb\\\": \\\"$(df -BG / | awk \\'NR==2{print $4}\\' | tr -d G)\\\"}\"' : 'powershell -NoProfile -Command \"$h = @{}; $h.hostname = $env:COMPUTERNAME; $h.os = (Get-CimInstance Win32_OperatingSystem).Caption; $h.cpu = (Get-CimInstance Win32_Processor).Name; $h.cores = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors; $h.ram_gb = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB,1); $h.gpu = (Get-CimInstance Win32_VideoController).Name; $h.vram_gb = [math]::Round((Get-CimInstance Win32_VideoController).AdapterRAM/1GB,1); $h.disk_free_gb = [math]::Round((Get-PSDrive C).Free/1GB,1); $h | ConvertTo-Json\"'}}"
+      },
+      "id": "exec-hw",
+      "name": "ScanHardware",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stdout = $input.first().json.stdout || '{}';\ntry {\n  const hw = JSON.parse(stdout);\n  return [{ json: { success: true, hardware: hw } }];\n} catch (e) {\n  return [{ json: { success: false, raw: stdout, error: e.message } }];\n}"
+      },
+      "id": "parse-hw",
+      "name": "ParseResult",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond-hw",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "ScanHardware", "type": "main", "index": 0 }]] },
+    "ScanHardware": { "main": [[{ "node": "ParseResult", "type": "main", "index": 0 }]] },
+    "ParseResult": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0f">
+<link rel="manifest" href="/manifest.json">
+<title>NexoSeed</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0f; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #111118; border-bottom: 1px solid #222; flex-wrap: wrap; gap: 8px; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+  header h1 span { color: #4ade80; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+
+  /* Model Selector */
+  .model-select-wrap { position: relative; }
+  #model-select {
+    appearance: none; -webkit-appearance: none;
+    background: #1a1a25; color: #e0e0e0; border: 1px solid #333; border-radius: 8px;
+    padding: 6px 28px 6px 10px; font-size: 12px; cursor: pointer; outline: none;
+    max-width: 200px;
+  }
+  #model-select:focus { border-color: #4ade80; }
+  .model-select-wrap::after {
+    content: "\25BC"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    color: #666; font-size: 10px; pointer-events: none;
+  }
+  #model-select option { background: #1a1a25; }
+  #model-select optgroup { color: #4ade80; font-style: normal; }
+
+  /* Gemini Badge */
+  .gemini-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; padding: 4px 8px; border-radius: 8px;
+    background: #1a1a25; border: 1px solid #333; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .gemini-badge:hover { border-color: #4ade80; }
+  .gemini-badge .g-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .gemini-badge .g-dot.on { background: #4ade80; }
+  .gemini-badge .g-dot.off { background: #666; }
+  .gemini-badge .g-dot.pending { background: #f59e0b; animation: pulse 1.2s infinite; }
+
+  .status-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .status-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #1a1a25; border: 1px solid #333; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.on { background: #4ade80; }
+  .dot.off { background: #ef4444; }
+  #status-text { font-size: 11px; color: #888; }
+
+  #chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  .msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; line-height: 1.5; font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .msg.user { align-self: flex-end; background: #1e3a5f; color: #bfdbfe; border-bottom-right-radius: 4px; }
+  .msg.assistant { align-self: flex-start; background: #1a1a25; color: #d1d5db; border-bottom-left-radius: 4px; border: 1px solid #2a2a35; }
+  .msg.assistant .model-tag { font-size: 10px; color: #666; margin-bottom: 4px; }
+  .msg.system { align-self: center; background: #1a2e1a; color: #86efac; font-size: 13px; border: 1px solid #2d4a2d; max-width: 90%; text-align: center; }
+
+  /* Gemini Login Modal */
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #111118; border: 1px solid #333; border-radius: 16px;
+    padding: 24px; max-width: 400px; width: 90%; text-align: center;
+  }
+  .modal h2 { font-size: 18px; margin-bottom: 8px; }
+  .modal h2 span { color: #4285f4; }
+  .modal p { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+  .modal .btn {
+    display: inline-block; padding: 10px 24px; border-radius: 10px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; margin: 4px;
+  }
+  .btn-google { background: #4285f4; color: #fff; }
+  .btn-google:hover { background: #3367d6; }
+  .btn-cancel { background: #333; color: #aaa; }
+  .btn-cancel:hover { background: #444; }
+  .btn-logout { background: #ef4444; color: #fff; font-size: 11px; padding: 4px 10px; }
+  .btn-logout:hover { background: #dc2626; }
+
+  #evolution-bar { padding: 10px 16px; background: #1a1a10; border-top: 1px solid #333; display: none; }
+  #evolution-bar .proposal { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  #evolution-bar .proposal p { flex: 1; }
+  #evolution-bar button { padding: 4px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; }
+  .btn-yes { background: #22c55e; color: #000; }
+  .btn-no { background: #333; color: #aaa; }
+
+  #input-area { display: flex; gap: 8px; padding: 10px 16px; background: #111118; border-top: 1px solid #222; }
+  #input { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid #333; background: #1a1a25; color: #e0e0e0; font-size: 14px; outline: none; resize: none; font-family: inherit; }
+  #input:focus { border-color: #4ade80; }
+  #send { padding: 10px 20px; border-radius: 10px; border: none; background: #4ade80; color: #000; font-weight: 600; cursor: pointer; font-size: 14px; }
+  #send:hover { background: #22c55e; }
+  #send:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+  .panel-toggle { cursor: pointer; font-size: 12px; color: #666; white-space: nowrap; }
+  .panel-toggle:hover { color: #4ade80; }
+
+  #side-panel { position: fixed; top: 50px; right: 10px; background: #111118; border: 1px solid #2a2a35; border-radius: 10px; padding: 12px; font-size: 11px; color: #888; max-width: 260px; max-height: 80vh; overflow-y: auto; display: none; z-index: 50; }
+  #side-panel.show { display: block; }
+  #side-panel h3 { color: #4ade80; margin-bottom: 6px; font-size: 12px; }
+  #side-panel .section { margin-bottom: 10px; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .typing { animation: pulse 1.2s infinite; }
+
+  @media (max-width: 600px) {
+    header { padding: 8px 12px; }
+    .msg { max-width: 92%; font-size: 13px; }
+    #model-select { max-width: 140px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Nexo<span>Seed</span></h1>
+    <div class="model-select-wrap">
+      <select id="model-select" onchange="selectModel(this.value)">
+        <option value="">Lade Modelle...</option>
+      </select>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="gemini-badge" id="gemini-badge" onclick="handleGeminiClick()">
+      <span class="g-dot off" id="gemini-dot"></span>
+      <span id="gemini-label">Gemini</span>
+    </div>
+    <div class="status-row">
+      <span class="status-badge"><span class="dot off" id="ollama-dot"></span> Ollama</span>
+      <span class="status-badge"><span class="dot off" id="n8n-dot"></span> n8n</span>
+    </div>
+    <span class="panel-toggle" onclick="togglePanel()">[ Info ]</span>
+  </div>
+</header>
+
+<div id="side-panel">
+  <div class="section">
+    <h3>Hardware</h3>
+    <div id="hw-info">Lade...</div>
+  </div>
+  <div class="section">
+    <h3>n8n Workflows</h3>
+    <div id="n8n-info">Lade...</div>
+  </div>
+  <div class="section">
+    <h3>Memory</h3>
+    <div id="mem-info">Lade...</div>
+  </div>
+</div>
+
+<!-- Gemini Login Modal -->
+<div class="modal-overlay" id="gemini-modal">
+  <div class="modal">
+    <h2>Mit <span>Google Gemini</span> verbinden</h2>
+    <p>Melde dich mit deinem Google-Konto an, um Gemini-Modelle in NexoSeed zu nutzen. Deine Anmeldedaten werden lokal gespeichert.</p>
+    <div id="gemini-modal-body">
+      <button class="btn btn-google" onclick="startGeminiLogin()">Mit Google anmelden</button>
+      <button class="btn btn-cancel" onclick="closeGeminiModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<div id="chat"></div>
+
+<div id="evolution-bar">
+  <div class="proposal">
+    <p id="evo-text"></p>
+    <button class="btn-yes" onclick="evoRespond(true)">Ja</button>
+    <button class="btn-no" onclick="evoRespond(false)">Nein</button>
+  </div>
+</div>
+
+<div id="input-area">
+  <textarea id="input" rows="1" placeholder="Nachricht an NexoSeed..." onkeydown="handleKey(event)"></textarea>
+  <button id="send" onclick="sendMessage()">Senden</button>
+</div>
+
+<script>
+const chatEl = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("send");
+const modelSelect = document.getElementById("model-select");
+
+let currentEvoId = null;
+let lastMsgId = 0;
+let selectedModel = "";
+let geminiLoggedIn = false;
+let geminiPolling = null;
+
+// --- Messages ---
+function addMsg(role, text, model) {
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+
+  if (role === "assistant") {
+    // Model tag
+    if (model) {
+      const tag = document.createElement("div");
+      tag.className = "model-tag";
+      tag.textContent = model;
+      div.appendChild(tag);
+    }
+    const thinkMatch = text.match(/<think>([\s\S]*?)<\/think>/);
+    let cleaned = text.replace(/<think>[\s\S]*?<\/think>\s*/g, "").trim();
+    if (thinkMatch) {
+      const thinkDiv = document.createElement("div");
+      thinkDiv.className = "model-tag";
+      thinkDiv.textContent = "(hat nachgedacht...)";
+      div.appendChild(thinkDiv);
+    }
+    div.appendChild(document.createTextNode(cleaned || "(denkt...)"));
+  } else {
+    div.textContent = text;
+  }
+
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+// --- Load models ---
+async function loadModels() {
+  try {
+    const res = await fetch("/api/models");
+    const data = await res.json();
+
+    modelSelect.innerHTML = "";
+
+    // Group by provider
+    const ollama = data.models.filter(m => m.provider === "ollama");
+    const gemini = data.models.filter(m => m.provider === "gemini");
+
+    if (ollama.length > 0) {
+      const group = document.createElement("optgroup");
+      group.label = "Ollama (lokal)";
+      for (const m of ollama) {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        const sizeMB = m.size ? Math.round(m.size / 1048576) + "MB" : "";
+        opt.textContent = `${m.name}${sizeMB ? " (" + sizeMB + ")" : ""}`;
+        group.appendChild(opt);
+      }
+      modelSelect.appendChild(group);
+    }
+
+    if (gemini.length > 0) {
+      const group = document.createElement("optgroup");
+      group.label = "Gemini (Cloud)";
+      for (const m of gemini) {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = `${m.name}${m.status === "login_required" ? " (Login)" : ""}`;
+        group.appendChild(opt);
+      }
+      modelSelect.appendChild(group);
+    }
+
+    if (data.models.length === 0) {
+      modelSelect.innerHTML = '<option value="">Keine Modelle</option>';
+    }
+
+    // Set selected
+    selectedModel = data.selected || "";
+    if (selectedModel) modelSelect.value = selectedModel;
+
+    // Gemini status
+    geminiLoggedIn = data.gemini?.loggedIn || false;
+    updateGeminiBadge(geminiLoggedIn, data.gemini?.email);
+
+  } catch (e) {
+    modelSelect.innerHTML = '<option value="">Fehler</option>';
+  }
+}
+
+function selectModel(model) {
+  if (!model) return;
+
+  // If Gemini selected and not logged in → show login
+  if (model.startsWith("gemini") && !geminiLoggedIn) {
+    openGeminiModal();
+    // Reset to previous
+    modelSelect.value = selectedModel;
+    return;
+  }
+
+  selectedModel = model;
+  fetch("/api/models/select", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model }),
+  });
+}
+
+// --- Gemini Login ---
+function updateGeminiBadge(loggedIn, email) {
+  const dot = document.getElementById("gemini-dot");
+  const label = document.getElementById("gemini-label");
+  geminiLoggedIn = loggedIn;
+  dot.className = `g-dot ${loggedIn ? "on" : "off"}`;
+  label.textContent = loggedIn ? (email || "Gemini") : "Gemini";
+}
+
+function handleGeminiClick() {
+  if (geminiLoggedIn) {
+    // Show logout option
+    openGeminiModalLoggedIn();
+  } else {
+    openGeminiModal();
+  }
+}
+
+function openGeminiModal() {
+  document.getElementById("gemini-modal-body").innerHTML = `
+    <button class="btn btn-google" onclick="startGeminiLogin()">Mit Google anmelden</button>
+    <button class="btn btn-cancel" onclick="closeGeminiModal()">Abbrechen</button>
+  `;
+  document.getElementById("gemini-modal").classList.add("show");
+}
+
+function openGeminiModalLoggedIn() {
+  document.getElementById("gemini-modal-body").innerHTML = `
+    <p style="color:#4ade80; margin-bottom:12px">Angemeldet</p>
+    <button class="btn btn-logout" onclick="geminiLogout()">Abmelden</button>
+    <button class="btn btn-cancel" onclick="closeGeminiModal()">Schliessen</button>
+  `;
+  document.getElementById("gemini-modal").classList.add("show");
+}
+
+function closeGeminiModal() {
+  document.getElementById("gemini-modal").classList.remove("show");
+  if (geminiPolling) { clearInterval(geminiPolling); geminiPolling = null; }
+}
+
+async function startGeminiLogin() {
+  try {
+    const res = await fetch("/api/gemini/login", { method: "POST" });
+    const data = await res.json();
+    if (data.loginUrl) {
+      // Open Google login in new window
+      window.open(data.loginUrl, "_blank", "width=500,height=700");
+
+      document.getElementById("gemini-modal-body").innerHTML = `
+        <p style="color:#f59e0b">Warte auf Google-Anmeldung...</p>
+        <div style="margin:12px 0"><span class="g-dot pending" style="display:inline-block;width:10px;height:10px"></span></div>
+        <button class="btn btn-cancel" onclick="closeGeminiModal()">Abbrechen</button>
+      `;
+      document.getElementById("gemini-dot").className = "g-dot pending";
+
+      // Poll for login completion
+      geminiPolling = setInterval(async () => {
+        try {
+          const sr = await fetch("/api/gemini/status");
+          const sd = await sr.json();
+          if (sd.loggedIn) {
+            clearInterval(geminiPolling);
+            geminiPolling = null;
+            geminiLoggedIn = true;
+            updateGeminiBadge(true, sd.email);
+            closeGeminiModal();
+            addMsg("system", `Gemini verbunden (${sd.email || "eingeloggt"})`);
+            loadModels(); // Refresh model list
+          }
+        } catch {}
+      }, 2000);
+    }
+  } catch (e) {
+    document.getElementById("gemini-modal-body").innerHTML = `
+      <p style="color:#ef4444">Fehler: ${e.message}</p>
+      <button class="btn btn-cancel" onclick="closeGeminiModal()">Schliessen</button>
+    `;
+  }
+}
+
+async function geminiLogout() {
+  await fetch("/api/gemini/logout", { method: "POST" });
+  geminiLoggedIn = false;
+  updateGeminiBadge(false);
+  closeGeminiModal();
+  addMsg("system", "Gemini abgemeldet");
+  loadModels();
+}
+
+// --- Chat ---
+async function loadHistory() {
+  try {
+    const res = await fetch("/api/history");
+    const msgs = await res.json();
+    for (const m of msgs) {
+      if (m.role === "user" || m.role === "assistant") {
+        addMsg(m.role, m.content, m.model);
+      }
+      lastMsgId = m.id;
+    }
+  } catch {}
+}
+
+async function sendMessage() {
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = "";
+  input.style.height = "auto";
+  addMsg("user", msg);
+  sendBtn.disabled = true;
+
+  const typing = document.createElement("div");
+  typing.className = "msg assistant typing";
+  typing.textContent = "...";
+  chatEl.appendChild(typing);
+  chatEl.scrollTop = chatEl.scrollHeight;
+
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: msg, model: selectedModel }),
+    });
+    const data = await res.json();
+    typing.remove();
+    addMsg("assistant", data.reply || data.error || "Keine Antwort", data.model);
+  } catch (e) {
+    typing.remove();
+    addMsg("system", "Fehler: " + e.message);
+  }
+  sendBtn.disabled = false;
+  input.focus();
+}
+
+function handleKey(e) {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  setTimeout(() => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 120) + "px"; }, 0);
+}
+
+// --- Status ---
+async function checkStatus() {
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    document.getElementById("ollama-dot").className = `dot ${data.ollama?.ok ? "on" : "off"}`;
+    document.getElementById("n8n-dot").className = `dot ${data.n8n?.ready ? "on" : "off"}`;
+    updateGeminiBadge(data.gemini?.loggedIn, data.gemini?.email);
+
+    const hw = data.hardware || {};
+    document.getElementById("hw-info").innerHTML = Object.entries(hw)
+      .map(([k, v]) => `<div><b>${k}:</b> ${v}</div>`).join("");
+    document.getElementById("mem-info").innerHTML = `<div>${data.memory_entries} Mem | ${data.chat_messages} Chat</div>`;
+
+    if (data.n8n?.ready) {
+      try {
+        const wfRes = await fetch("/api/n8n/workflows");
+        const wfData = await wfRes.json();
+        const wfs = wfData.data || [];
+        document.getElementById("n8n-info").innerHTML = wfs.length > 0
+          ? wfs.map(w => `<div>${w.active ? "\u25CF" : "\u25CB"} ${w.name}</div>`).join("")
+          : "<div>Keine</div>";
+      } catch {}
+    } else {
+      document.getElementById("n8n-info").innerHTML = "<div>offline</div>";
+    }
+  } catch {}
+}
+
+function togglePanel() { document.getElementById("side-panel").classList.toggle("show"); }
+
+// --- Evolution ---
+async function checkEvolution() {
+  try {
+    const res = await fetch("/api/evolution");
+    const proposals = await res.json();
+    const bar = document.getElementById("evolution-bar");
+    if (proposals.length > 0) {
+      currentEvoId = proposals[0].id;
+      document.getElementById("evo-text").textContent = proposals[0].text;
+      bar.style.display = "block";
+    } else {
+      bar.style.display = "none";
+    }
+  } catch {}
+}
+
+async function evoRespond(accept) {
+  if (!currentEvoId) return;
+  try {
+    const res = await fetch(`/api/evolution/${currentEvoId}/${accept ? "accept" : "reject"}`, { method: "POST" });
+    const data = await res.json();
+    addMsg("system", data.message);
+    document.getElementById("evolution-bar").style.display = "none";
+    currentEvoId = null;
+  } catch {}
+}
+
+// --- Boot ---
+loadModels();
+loadHistory().then(() => {
+  checkStatus();
+  setInterval(checkStatus, 15000);
+  setInterval(loadModels, 30000);
+  setTimeout(checkEvolution, 5000);
+  setInterval(checkEvolution, 60000);
+
+  setTimeout(async () => {
+    try {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      if (data.chat_messages === 0) {
+        const hw = data.hardware || {};
+        addMsg("assistant",
+          `Hallo! Ich bin NexoSeed v0.3\n\n` +
+          `Ich laufe auf ${hw.hostname || "deinem PC"} und hab mich umgeschaut:\n` +
+          `- CPU: ${hw.cpu || "?"}\n` +
+          `- GPU: ${hw.gpu || "?"}\n` +
+          `- RAM: ${hw.ram_gb || "?"}GB\n` +
+          `- Ollama: ${data.ollama?.ok ? data.ollama.models?.map(m=>m.name).join(", ") || "kein Modell" : "offline"}\n` +
+          `- Gemini: ${data.gemini?.loggedIn ? "verbunden" : "nicht angemeldet"}\n\n` +
+          `Waehle oben dein Modell und frag mich was.`
+        );
+      }
+    } catch {}
+  }, 1500);
+});
+</script>
+</body>
+</html>

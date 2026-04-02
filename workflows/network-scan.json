@@ -1,0 +1,57 @@
+{
+  "name": "NexoSeed - Network Scan",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "nexo-network-scan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-net",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "command": "arp -a"
+      },
+      "id": "exec-arp",
+      "name": "ARPScan",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const stdout = $input.first().json.stdout || '';\nconst devices = [];\nconst seen = new Set();\n\nfor (const line of stdout.split('\\n')) {\n  const m = line.match(/(\\d+\\.\\d+\\.\\d+\\.\\d+)/);\n  if (m && !m[1].endsWith('.255') && !m[1].endsWith('.1') && m[1] !== '255.255.255.255' && !seen.has(m[1])) {\n    seen.add(m[1]);\n    // Try to extract hostname\n    const hostMatch = line.match(/^\\s*(\\S+)\\s+\\(/);\n    devices.push({ ip: m[1], hostname: hostMatch ? hostMatch[1] : null });\n  }\n}\n\nreturn [{ json: { success: true, device_count: devices.length, devices } }];"
+      },
+      "id": "parse-net",
+      "name": "ParseDevices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "allIncomingItems"
+      },
+      "id": "respond-net",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "ARPScan", "type": "main", "index": 0 }]] },
+    "ARPScan": { "main": [[{ "node": "ParseDevices", "type": "main", "index": 0 }]] },
+    "ParseDevices": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
